@@ -1,0 +1,6 @@
+[package]
+name = "mem_aead"
+version = "0.1.0"
+authors = ["Philipp Jovanovic <philipp@jovanovic.io>"]
+
+[dependencies]
