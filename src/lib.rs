@@ -12,25 +12,32 @@ const R1 : u32 = 24;
 const R2 : u32 = 16; 
 const R3 : u32 = 63; 
 
-// XXX: remove all the magic constants
+#[derive(PartialEq)]
+enum Tag {
+    HDD, // Header data
+    MSG  // Message data
+}
+
+macro_rules! Bytes { ($x: expr) => (($x + 7) / 8;); }
+macro_rules! Words { ($x: expr) => (($x + (MRO_W-1)) / MRO_W;); }
 
 #[inline]
-pub fn load64_le(v : &[u8]) -> u64 {
+fn load64_le(v : &[u8]) -> u64 {
     let mut x = 0u64;
-    for i in 0..8 {
+    for i in 0..Bytes!(MRO_W) {
         x |= (v[i] as u64) << (8*i);
     }
     return x;
 }
 
 #[inline]
-pub fn store64_le(v : &mut[u8], x : u64) {
-    for i in 0..8 {
+fn store64_le(v : &mut[u8], x : u64) {
+    for i in 0..Bytes!(MRO_W) {
         v[i] = (x >> 8*i) as u8;
     }
 }
 
-macro_rules! Add { ($x: expr, $y: expr) => ( (Wrapping($x)+Wrapping($y)).0;); }
+macro_rules! Add { ($x: expr, $y: expr) => ((Wrapping($x)+Wrapping($y)).0;); }
 
 macro_rules! G { ($a:expr, $b:expr, $c:expr, $d:expr) => 
     ({
@@ -41,8 +48,9 @@ macro_rules! G { ($a:expr, $b:expr, $c:expr, $d:expr) =>
     });
 }
 
+#[inline]
 #[allow(non_snake_case)]
-pub fn F(x : &mut[u64; 16]) {
+fn F(x : &mut[u64; 16]) {
     // Column step
     G!(x[ 0], x[ 4], x[ 8], x[12]);
     G!(x[ 1], x[ 5], x[ 9], x[13]);
@@ -55,14 +63,15 @@ pub fn F(x : &mut[u64; 16]) {
     G!(x[ 3], x[ 4], x[ 9], x[14]);
 }
 
-pub fn mro_permute(x : &mut[u64; 16]) {
+#[inline]
+fn mro_permute(x : &mut[u64; 16]) {
     for _ in 0..MRO_L {
         F(x);
     }
 }
 
 #[inline]
-pub fn mro_pad(output : &mut[u8], input : &[u8]) {
+fn mro_pad(output : &mut[u8], input : &[u8]) {
     for i in 0..input.len() {
         output[i] = input[i];
     }
@@ -72,7 +81,7 @@ pub fn mro_pad(output : &mut[u8], input : &[u8]) {
     output[input.len()] = 0x01;
 }
 
-pub fn mro_init_mask(mask : &mut[u64; 16], k : &[u8; 32], n : &[u8; 16]) {
+fn mro_init_mask(mask : &mut[u64; 16], k : &[u8; 32], n : &[u8; 16]) {
 
     mask[ 0] = load64_le(&n[0..]);
     mask[ 1] = load64_le(&n[8..]);
@@ -97,58 +106,61 @@ pub fn mro_init_mask(mask : &mut[u64; 16], k : &[u8; 32], n : &[u8; 16]) {
     mro_permute(mask);
 }
 
-pub fn mro_alpha(mask : &mut[u64; 16]) {
+// alpha(x) = phi(x)
+fn mro_alpha(mask : &mut[u64; 16]) {
     let t = mask[0].rotate_left(53) ^ (mask[5] << 13);
-    for i in 0..15 {
+    for i in 0..Words!(MRO_B)-1 {
         mask[i] = mask[i+1];
     }
     mask[15] = t;
 }
 
-pub fn mro_beta(mask : &mut[u64; 16]) {
+// beta(x) = phi(x) ^ x
+fn mro_beta(mask : &mut[u64; 16]) {
     let t = mask[0].rotate_left(53) ^ (mask[5] << 13);
-    for i in 0..15 {
+    for i in 0..Words!(MRO_B)-1 {
         mask[i] ^= mask[i+1];
     }
     mask[15] ^= t;
 }
 
-pub fn mro_gamma(mask : &mut[u64; 16]) {
+// gamma(x) = phi^2(x) ^ phi(x) ^ x
+fn mro_gamma(mask : &mut[u64; 16]) {
     let t0 = mask[0].rotate_left(53) ^ (mask[5] << 13);
     let t1 = mask[1].rotate_left(53) ^ (mask[6] << 13);
-    for i in 0..14 {
+    for i in 0..Words!(MRO_B)-2 {
         mask[i] ^= mask[i+1] ^ mask[i+2];
     }
-    mask[14] ^= (mask[15] ^ t0);
+    mask[14] ^= mask[15] ^ t0;
     mask[15] ^= t0 ^ t1;
 }
 
-pub fn mro_absorb_block(state : &mut[u64; 16], mask : &[u64; 16], block : &[u8]) {
+fn mro_absorb_block(state : &mut[u64; 16], mask : &[u64; 16], block : &[u8]) {
 
     let mut b = &mut[0u64; 16];
 
-    for i in 0..16 {
+    for i in 0..Words!(MRO_B) {
         b[i] = load64_le(&block[8*i..]) ^ mask[i];
     }
 
     mro_permute(b);
 
-    for i in 0..16 {
+    for i in 0..Words!(MRO_B) {
         state[i] ^= b[i] ^ mask[i];
     }
 }
 
-pub fn mro_absorb_lastblock(state : &mut[u64; 16], mask : &[u64; 16], block : &[u8]) {
-    let mut b = &mut[0u8; 128];
+fn mro_absorb_lastblock(state : &mut[u64; 16], mask : &[u64; 16], block : &[u8]) {
+    let mut b = &mut[0u8; Bytes!(MRO_B)];
     mro_pad(b, block);
     mro_absorb_block(state, mask, b);
 }
 
-pub fn mro_encrypt_block(mask : &[u64; 16], tag : &[u64; 16], block_nr : usize, block_out : &mut[u8], block_in : &[u8]) {
+fn mro_encrypt_block(mask : &[u64; 16], tag : &[u64; 16], block_nr : usize, block_out : &mut[u8], block_in : &[u8]) {
 
     let mut b = &mut[0u64; 16];
 
-    for i in 0..16 {
+    for i in 0..Words!(MRO_B) {
         b[i] = mask[i];
     }
 
@@ -160,16 +172,16 @@ pub fn mro_encrypt_block(mask : &[u64; 16], tag : &[u64; 16], block_nr : usize, 
 
     mro_permute(b);
 
-    for i in 0..16 {
+    for i in 0..Words!(MRO_B) {
         b[i] ^= load64_le(&block_in[8*i..]) ^ mask[i];
         store64_le(&mut block_out[8*i..], b[i]);
     }
 }
 
-pub fn mro_encrypt_lastblock(mask : &[u64; 16], tag : &[u64; 16], block_nr : usize, block_out : &mut[u8], block_in : &[u8]) {
+fn mro_encrypt_lastblock(mask : &[u64; 16], tag : &[u64; 16], block_nr : usize, block_out : &mut[u8], block_in : &[u8]) {
 
-    let mut b0 = &mut[0u8; 128];
-    let mut b1 = &mut[0u8; 128];
+    let mut b0 = &mut[0u8; Bytes!(MRO_B)];
+    let mut b1 = &mut[0u8; Bytes!(MRO_B)];
     for i in 0..block_in.len() {
         b0[i] = block_in[i];
     }
@@ -179,18 +191,18 @@ pub fn mro_encrypt_lastblock(mask : &[u64; 16], tag : &[u64; 16], block_nr : usi
     }
 }
 
-pub fn mro_absorb_data(state : &mut[u64; 16], mask : &mut[u64; 16], data : &[u8], flag : bool) {
+fn mro_absorb_data(state : &mut[u64; 16], mask : &mut[u64; 16], data : &[u8], data_type : Tag) {
 
-    if flag { // XXX: better name
+    if data_type == Tag::MSG { 
         mro_beta(mask);
     }
 
     let mut inlen = data.len();
     let mut offset = 0;
-    while inlen >= 128 {
+    while inlen >= Bytes!(MRO_B) {
         mro_absorb_block(state, mask, &data[offset..]);
-        inlen -= 128;
-        offset += 128;
+        inlen -= Bytes!(MRO_B);
+        offset += Bytes!(MRO_B);
         mro_alpha(mask);
     }
     if inlen > 0 {
@@ -198,17 +210,17 @@ pub fn mro_absorb_data(state : &mut[u64; 16], mask : &mut[u64; 16], data : &[u8]
     }
 }
 
-pub fn mro_encrypt_data(mask : &mut[u64; 16], tag : &[u64; 16], data_out : &mut[u8], data_in : &[u8], inlen : usize) {
+fn mro_encrypt_data(mask : &mut[u64; 16], tag : &[u64; 16], data_out : &mut[u8], data_in : &[u8], inlen : usize) {
 
     mro_gamma(mask);
 
     let mut len = inlen;
     let mut offset = 0;
     let mut block_nr : usize = 0;
-    while len >= 128 {
+    while len >= Bytes!(MRO_B) {
         mro_encrypt_block(mask, tag, block_nr, &mut data_out[offset..], &data_in[offset..]);
-        len -= 128;
-        offset += 128;
+        len -= Bytes!(MRO_B);
+        offset += Bytes!(MRO_B);
         block_nr += 1;
     }
     if len > 0 {
@@ -216,11 +228,11 @@ pub fn mro_encrypt_data(mask : &mut[u64; 16], tag : &[u64; 16], data_out : &mut[
     }
 }
 
-pub fn mro_decrypt_data(mask : &mut[u64; 16], tag : &[u64; 16], data_out : &mut[u8], data_in : &[u8], inlen : usize) {
+fn mro_decrypt_data(mask : &mut[u64; 16], tag : &[u64; 16], data_out : &mut[u8], data_in : &[u8], inlen : usize) {
     mro_encrypt_data(mask, tag, data_out, data_in, inlen);
 }
 
-pub fn mro_finalise(state : &mut[u64; 16], mask : &mut[u64; 16], hlen : usize, mlen : usize) {
+fn mro_finalise(state : &mut[u64; 16], mask : &mut[u64; 16], hlen : usize, mlen : usize) {
 
     mro_beta(mask);
     mro_beta(mask);
@@ -228,93 +240,105 @@ pub fn mro_finalise(state : &mut[u64; 16], mask : &mut[u64; 16], hlen : usize, m
     state[14] ^= hlen as u64;
     state[15] ^= mlen as u64;
 
-    for i in 0..16 {
+    for i in 0..Words!(MRO_B) {
         state[i] ^= mask[i];
     }
 
     mro_permute(state);
 
-    for i in 0..16 {
+    for i in 0..Words!(MRO_B) {
         state[i] ^= mask[i];
     }
 }
 
-pub fn mro_output_tag(state : &mut[u64; 16], tag : &mut[u8]) { // XXX: figure out how to extract fixed-size byte slices
-
-    let mut block  = &mut[0u8; 32];
-
-    for i in 0..4 {
-       store64_le(&mut block[8*i..], state[i]); // XXX: maybe write directly to tag?
+fn mro_store_tag(state : &[u64; 16], tag : &mut[u8]) {
+    for i in 0..Words!(MRO_T) {
+       store64_le(&mut tag[8*i..], state[i]);
     }
-
-    tag.copy_from_slice(block);
 }
 
-pub fn mro_verify_tag(tag1 : &[u8], tag2 : &[u8]) -> bool {
+fn mro_load_tag(state : &mut[u64; 16], tag : &[u8]) {
+    for i in 0..Words!(MRO_T) {
+        state[i] = load64_le(&tag[8*i..]);
+    }
+}
+
+fn mro_verify_tag(x : &[u8], y : &[u8]) -> bool {
+
+    if x.len() != y.len() {
+        return false;
+    }
 
     let mut acc = 0;
 
-    for i in 0..32 {
-        acc |= tag1[i] ^ tag2[i];
+    for i in 0..Bytes!(MRO_T) {
+        acc |= x[i] ^ y[i];
     }
 
     return acc == 0;
 }
 
-
 pub fn crypto_aead_encrypt(c : &mut[u8], h : &[u8], m : &[u8], nonce : &[u8; 16], key : &[u8; 32]) {
 
-    let mut state = &mut[0u64; 16];
-    let mut la = &mut[0u64; 16];
-    let mut le = &mut[0u64; 16];
+    let mut state = &mut[0u64; Words!(MRO_B)];
+    let mut la = &mut[0u64; Words!(MRO_B)];
+    let mut le = &mut[0u64; Words!(MRO_B)];
 
+    // initialise masks
     mro_init_mask(le, key, nonce);
-
-    // absorb header and message
     for i in 0..la.len() { la[i] = le[i]; }
-    mro_absorb_data(state, la, h, false);
 
+    // absorb header 
+    mro_absorb_data(state, la, h, Tag::HDD);
+
+    // absorb message
     for i in 0..la.len() { la[i] = le[i]; }
-    mro_absorb_data(state, la, m, true);
+    mro_absorb_data(state, la, m, Tag::MSG);
 
+    // finalise data absorb
     for i in 0..la.len() { la[i] = le[i]; }
     mro_finalise(state, la, h.len(), m.len());
 
-    mro_output_tag(state, &mut c[m.len()..]);
+    // extract tag
+    mro_store_tag(state, &mut c[m.len()..]);
 
+    // encrypt data
     mro_encrypt_data(le, state, c, m, m.len());
 }
 
 pub fn crypto_aead_decrypt(m : &mut[u8], h : &[u8], c : &[u8], nonce: &[u8; 16], key : &[u8; 32]) -> bool {
 
-    let mut state = &mut[0u64; 16];
-    let mut la = &mut[0u64; 16];
-    let mut le = &mut[0u64; 16];
-    let mut tag = &mut[0u8; 32];
+    let mut state = &mut[0u64; Words!(MRO_B)];
+    let mut la = &mut[0u64; Words!(MRO_B)];
+    let mut le = &mut[0u64; Words!(MRO_B)];
+    let mut tag = &mut[0u8; Bytes!(MRO_T)];
+    let mlen = c.len() - Bytes!(MRO_T);
 
+    // initialise masks
     mro_init_mask(le, key, nonce);
     for i in 0..la.len() { la[i] = le[i]; }
 
-    let mlen = c.len() - 32;
+    // load received tag temporarily into the first four state words
+    mro_load_tag(state, &c[mlen..]);
 
-    state[0] = load64_le(&c[mlen +  0..]);
-    state[1] = load64_le(&c[mlen +  8..]);
-    state[2] = load64_le(&c[mlen + 16..]);
-    state[3] = load64_le(&c[mlen + 24..]);
-
+    // decrypt message
     mro_decrypt_data(le, state, m, c, mlen);
 
-    // prepare state and mask for data absorb
+    // absorb header
     for i in 0..state.len() { state[i] = 0; le[i] = la[i]; }
-    mro_absorb_data(state, la, h, false);
+    mro_absorb_data(state, la, h, Tag::HDD);
 
+    // absorb message
     for i in 0..la.len() { la[i] = le[i]; }
-    mro_absorb_data(state, la, m, true);
+    mro_absorb_data(state, la, m, Tag::MSG);
     
+    // finalise data absorb
     for i in 0..la.len() { la[i] = le[i]; }
     mro_finalise(state, la, h.len(), mlen);
 
-    mro_output_tag(state,tag);
+    // extract tag
+    mro_store_tag(state,tag);
 
+    // verify tag
     return mro_verify_tag(&c[mlen..], tag);
 }
