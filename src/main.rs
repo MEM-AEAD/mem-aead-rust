@@ -24,8 +24,8 @@ fn print_bytes(v : &[u8]) {
     println!("");
 }
 
-const HLEN : usize = 129;
-const MLEN : usize = 256;
+const HLEN : usize = 256;
+const MLEN : usize = 257;
 
 fn main() {
 
