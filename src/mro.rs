@@ -212,26 +212,26 @@ fn mro_absorb_data(state : &mut[Word; 16], mask : &mut[Word; 16], data : &[u8], 
     }
 }
 
-fn mro_encrypt_data(mask : &mut[Word; 16], tag : &[Word; 16], data_out : &mut[u8], data_in : &[u8], inlen : usize) {
+fn mro_encrypt_data(mask : &mut[Word; 16], tag : &[Word; 16], data_out : &mut[u8], data_in : &[u8]) {
 
     mro_gamma(mask);
 
-    let mut len = inlen;
+    let mut inlen = data_in.len();
     let mut offset = 0;
     let mut block_nr : usize = 0;
-    while len >= Bytes!(MRO_B) {
+    while inlen >= Bytes!(MRO_B) {
         mro_encrypt_block(mask, tag, block_nr, &mut data_out[offset..], &data_in[offset..]);
-        len -= Bytes!(MRO_B);
+        inlen -= Bytes!(MRO_B);
         offset += Bytes!(MRO_B);
         block_nr += 1;
     }
-    if len > 0 {
+    if inlen > 0 {
         mro_encrypt_lastblock(mask, tag, block_nr, &mut data_out[offset..], &data_in[offset..]);
     }
 }
 
-fn mro_decrypt_data(mask : &mut[Word; 16], tag : &[Word; 16], data_out : &mut[u8], data_in : &[u8], inlen : usize) {
-    mro_encrypt_data(mask, tag, data_out, data_in, inlen);
+fn mro_decrypt_data(mask : &mut[Word; 16], tag : &[Word; 16], data_out : &mut[u8], data_in : &[u8]) {
+    mro_encrypt_data(mask, tag, data_out, data_in);
 }
 
 fn mro_finalise(state : &mut[Word; 16], mask : &mut[Word; 16], hlen : usize, mlen : usize) {
@@ -305,7 +305,7 @@ pub fn crypto_aead_encrypt(c : &mut[u8], h : &[u8], m : &[u8], nonce : &[u8; 16]
     mro_store_tag(state, &mut c[m.len()..]);
 
     // encrypt data
-    mro_encrypt_data(le, state, &mut c[0..m.len()], m, m.len());
+    mro_encrypt_data(le, state, &mut c[0..m.len()], m);
 }
 
 pub fn crypto_aead_decrypt(m : &mut[u8], h : &[u8], c : &[u8], nonce: &[u8; 16], key : &[u8; 32]) -> bool {
@@ -324,7 +324,7 @@ pub fn crypto_aead_decrypt(m : &mut[u8], h : &[u8], c : &[u8], nonce: &[u8; 16],
     mro_load_tag(state, &c[mlen..]);
 
     // decrypt message
-    mro_decrypt_data(le, state, m, &c[0..mlen], mlen);
+    mro_decrypt_data(le, state, m, &c[0..mlen]);
 
     // absorb header
     for i in 0..state.len() { state[i] = 0; le[i] = la[i]; }
