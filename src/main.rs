@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate mem_aead;
 
-use mem_aead::mro::{crypto_aead_encrypt,crypto_aead_decrypt};
-//use mem_aead::mro_kat;
+//use mem_aead::mro::{crypto_aead_encrypt,crypto_aead_decrypt};
+use mem_aead::opp::{crypto_aead_encrypt,crypto_aead_decrypt};
 
 #[allow(dead_code)]
 fn print_state(x : &[u64; 16]) {
@@ -16,14 +16,12 @@ fn print_state(x : &[u64; 16]) {
 fn print_bytes(v : &[u8]) {
     for i in 0..v.len() {
         print!("{:02X} ", v[i]);
-        if i % 8 == 7 {
+        if i % 16 == 15 {
             println!("");
         }
     }
     println!("\n");
 }
-
-
 
 #[allow(dead_code)]
 fn test() {
@@ -116,4 +114,5 @@ fn main() {
       
     //println!("{}", mro_kat::KAT[0]);
        
+    test();
 }

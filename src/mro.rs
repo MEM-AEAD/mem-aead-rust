@@ -16,8 +16,8 @@ const R3 : u32 = 63;
 
 #[derive(PartialEq)]
 enum Tag {
-    HDD, // Header data
-    MSG  // Message data
+    HDD, // header data
+    MSG  // message data
 }
 
 macro_rules! Bytes { ($x: expr) => (($x + 7) / 8;); }
@@ -53,12 +53,12 @@ macro_rules! G { ($a:expr, $b:expr, $c:expr, $d:expr) =>
 #[inline]
 #[allow(non_snake_case)]
 fn F(x : &mut[Word; 16]) {
-    // Column step
+    // column step
     G!(x[ 0], x[ 4], x[ 8], x[12]);
     G!(x[ 1], x[ 5], x[ 9], x[13]);
     G!(x[ 2], x[ 6], x[10], x[14]);
     G!(x[ 3], x[ 7], x[11], x[15]);
-    // Diagonal step
+    // diagonal step
     G!(x[ 0], x[ 5], x[10], x[15]);
     G!(x[ 1], x[ 6], x[11], x[12]);
     G!(x[ 2], x[ 7], x[ 8], x[13]);
@@ -282,23 +282,23 @@ fn mro_verify_tag(x : &[u8], y : &[u8]) -> bool {
 
 pub fn crypto_aead_encrypt(c : &mut[u8], h : &[u8], m : &[u8], nonce : &[u8; 16], key : &[u8; 32]) {
 
-    let mut state  = &mut[0 as Word; Words!(MRO_B)];
+    let mut state = &mut[0 as Word; Words!(MRO_B)];
     let mut la = &mut[0 as Word; Words!(MRO_B)];
     let mut le = &mut[0 as Word; Words!(MRO_B)];
 
     // initialise masks
     mro_init_mask(le, key, nonce);
-    for i in 0..la.len() { la[i] = le[i]; }
+    for i in 0..Words!(MRO_B) { la[i] = le[i]; }
 
     // absorb header 
     mro_absorb_data(state, la, h, Tag::HDD);
 
     // absorb message
-    for i in 0..la.len() { la[i] = le[i]; }
+    for i in 0..Words!(MRO_B) { la[i] = le[i]; }
     mro_absorb_data(state, la, m, Tag::MSG);
 
     // finalise data absorb
-    for i in 0..la.len() { la[i] = le[i]; }
+    for i in 0..Words!(MRO_B) { la[i] = le[i]; }
     mro_finalise(state, la, h.len(), m.len());
 
     // extract tag
