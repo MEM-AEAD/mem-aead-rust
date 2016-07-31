@@ -1,10 +1,12 @@
 extern crate mem_aead;
 
+pub mod opp_kat;
+
 #[cfg(test)]
 mod test {
 
     use mem_aead::opp::{crypto_aead_encrypt,crypto_aead_decrypt};
-    use mem_aead::opp_kat; // XXX: this should definitely be part of the test
+    use super::opp_kat;
 
     #[test]
     fn opp_kat_test() {

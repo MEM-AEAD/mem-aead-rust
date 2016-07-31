@@ -1,10 +1,12 @@
 extern crate mem_aead;
 
+pub mod mro_kat;
+
 #[cfg(test)]
 mod test {
 
     use mem_aead::mro::{crypto_aead_encrypt,crypto_aead_decrypt};
-    use mem_aead::mro_kat; // XXX: this should definitely be part of the test
+    use super::mro_kat;
 
     #[test]
     fn mro_kat_test() {
