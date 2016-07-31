@@ -1,8 +1,3 @@
-#[macro_use]
-extern crate mem_aead;
-
-//use mem_aead::mro::{crypto_aead_encrypt,crypto_aead_decrypt};
-use mem_aead::opp::{crypto_aead_encrypt,crypto_aead_decrypt};
 
 #[allow(dead_code)]
 fn print_state(x : &[u64; 16]) {
@@ -23,8 +18,8 @@ fn print_bytes(v : &[u8]) {
     println!("");
 }
 
-#[allow(dead_code)]
-fn test() {
+pub fn debug(crypto_aead_encrypt: &Fn(&mut[u8], &[u8], &[u8], &[u8; 16], &[u8; 32]),
+             crypto_aead_decrypt: &Fn(&mut[u8], &[u8], &[u8], &[u8; 16], &[u8; 32]) -> bool) {
 
     const HLEN : usize = 128;
     const MLEN : usize = 256;
@@ -61,12 +56,9 @@ fn test() {
     print_bytes(m);
 
     println!("{}", result);
-
 }
- 
 
-#[allow(dead_code)]
-fn genkat() {
+pub fn genkat(crypto_aead_encrypt: &Fn(&mut[u8], &[u8], &[u8], &[u8; 16], &[u8; 32])) {
 
     const MAX_SIZE : usize = 768;
 
@@ -106,11 +98,4 @@ fn genkat() {
         }
     }
     println!("];");
-}
-
-
-fn main() {
-
-    //genkat();
-    test();
 }
