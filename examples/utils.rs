@@ -99,3 +99,6 @@ pub fn genkat(crypto_aead_encrypt: &Fn(&mut[u8], &[u8], &[u8], &[u8; 16], &[u8; 
     }
     println!("];");
 }
+
+#[allow(dead_code)]
+fn main() {} // XXX: hack to make `cargo test` work again

@@ -5,6 +5,7 @@ use mem_aead::opp::{crypto_aead_encrypt};
 
 pub mod utils;
 
+#[allow(dead_code)]
 fn main() {
     utils::genkat(&crypto_aead_encrypt);
 }

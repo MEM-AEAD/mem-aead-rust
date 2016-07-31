@@ -5,6 +5,7 @@ use mem_aead::opp::{crypto_aead_encrypt,crypto_aead_decrypt};
 
 pub mod utils;
 
+#[allow(dead_code)]
 fn main() {
     utils::debug(&crypto_aead_encrypt, &crypto_aead_decrypt);
 }
