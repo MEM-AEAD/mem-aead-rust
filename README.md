@@ -1,4 +1,4 @@
-# Masked Even-Mansour AEAD Modes (Rust)
+# Masked Even-Mansour AEAD Modes (Rust) [![Build Status](https://travis-ci.org/MEM-AEAD/mem-aead-rust.svg?branch=master)](https://travis-ci.org/MEM-AEAD/mem-aead-rust)
 
 ## Warning
 The cipher designs of this source code package are very new and still **lack extensive analysis**. Therefore, **do not use** them in your applications just now!
