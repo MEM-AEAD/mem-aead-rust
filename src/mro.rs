@@ -5,8 +5,8 @@ type Word = u64;
 const MRO_W: usize = 64;         // word size
 const MRO_L: usize = 4;          // number of rounds
 const MRO_T: usize = MRO_W *  4; // tag size
-const MRO_N: usize = MRO_W *  2; // nonce size
-const MRO_K: usize = MRO_W *  4; // key size
+//const MRO_N: usize = MRO_W *  2; // nonce size
+//const MRO_K: usize = MRO_W *  4; // key size
 const MRO_B: usize = MRO_W * 16; // permutation size
 
 const R0 : u32 = 32; 
@@ -199,16 +199,16 @@ fn mro_absorb_data(state : &mut[Word; 16], mask : &mut[Word; 16], data : &[u8], 
         mro_beta(mask);
     }
 
-    let mut inlen = data.len();
-    let mut offset = 0;
-    while inlen >= Bytes!(MRO_B) {
-        mro_absorb_block(state, mask, &data[offset..]);
-        inlen -= Bytes!(MRO_B);
-        offset += Bytes!(MRO_B);
+    let mut i = data.len();
+    let mut o = 0;
+    while i >= Bytes!(MRO_B) {
+        mro_absorb_block(state, mask, &data[o..o+Bytes!(MRO_B)]);
+        i -= Bytes!(MRO_B);
+        o += Bytes!(MRO_B);
         mro_alpha(mask);
     }
-    if inlen > 0 {
-        mro_absorb_lastblock(state, mask, &data[offset..]);
+    if i > 0 {
+        mro_absorb_lastblock(state, mask, &data[o..o+i]);
     }
 }
 
@@ -216,17 +216,17 @@ fn mro_encrypt_data(mask : &mut[Word; 16], tag : &[Word; 16], data_out : &mut[u8
 
     mro_gamma(mask);
 
-    let mut inlen = data_in.len();
-    let mut offset = 0;
-    let mut block_nr : usize = 0;
-    while inlen >= Bytes!(MRO_B) {
-        mro_encrypt_block(mask, tag, block_nr, &mut data_out[offset..], &data_in[offset..]);
-        inlen -= Bytes!(MRO_B);
-        offset += Bytes!(MRO_B);
-        block_nr += 1;
+    let mut i = data_in.len();
+    let mut o = 0;
+    let mut n = 0;
+    while i >= Bytes!(MRO_B) {
+        mro_encrypt_block(mask, tag, n, &mut data_out[o..o+Bytes!(MRO_B)], &data_in[o..o+Bytes!(MRO_B)]);
+        i -= Bytes!(MRO_B);
+        o += Bytes!(MRO_B);
+        n += 1;
     }
-    if inlen > 0 {
-        mro_encrypt_lastblock(mask, tag, block_nr, &mut data_out[offset..], &data_in[offset..]);
+    if i > 0 {
+        mro_encrypt_lastblock(mask, tag, n, &mut data_out[o..o+i], &data_in[o..o+i]);
     }
 }
 

@@ -3,11 +3,11 @@ extern crate mem_aead;
 #[cfg(test)]
 mod test {
 
-    use mem_aead::mro::{crypto_aead_encrypt,crypto_aead_decrypt};
-    use mem_aead::mro_kat; // XXX: this should definitely be part of the test
+    use mem_aead::opp::{crypto_aead_encrypt,crypto_aead_decrypt};
+    use mem_aead::opp_kat; // XXX: this should definitely be part of the test
 
     #[test]
-    fn mro_kat_test() {
+    fn opp_kat_test() {
     
         const MAX_SIZE : usize = 768;
     
@@ -35,7 +35,7 @@ mod test {
             crypto_aead_encrypt(&mut c[0..i+32], &h[0..i], &m[0..i], n, k);
     
             for j in 0..i+32 {
-                assert_eq!(mro_kat::KAT[pos + j ], c[j]);
+                assert_eq!(opp_kat::KAT[pos + j ], c[j]);
             }
     
             let w = &mut[0u8; MAX_SIZE];

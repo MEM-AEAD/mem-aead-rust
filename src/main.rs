@@ -20,14 +20,14 @@ fn print_bytes(v : &[u8]) {
             println!("");
         }
     }
-    println!("\n");
+    println!("");
 }
 
 #[allow(dead_code)]
 fn test() {
 
-    const HLEN : usize = 256;
-    const MLEN : usize = 257;
+    const HLEN : usize = 128;
+    const MLEN : usize = 256;
 
     let k : &[u8; 32] = &[0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F,0xFF,0xEE,0xDD,0xCC,0xBB,0xAA,0x99,0x88,0x77,0x66,0x55,0x44,0x33,0x22,0x11,0x00];
     let n : &[u8; 16] = &[0xF0,0xE0,0xD0,0xC0,0xB0,0xA0,0x90,0x80,0x70,0x60,0x50,0x40,0x30,0x20,0x10,0x00];
@@ -52,6 +52,8 @@ fn test() {
     crypto_aead_encrypt(c, h, m, n, k);
     println!("ENCRYPTED PAYLOAD + TAG:");
     print_bytes(c);
+
+    for i in 0..MLEN { m[i] = 0; }
 
     println!("========== DECRYPTION ==========");
     let result = crypto_aead_decrypt(m, h, c, n, k);
@@ -85,7 +87,6 @@ fn genkat() {
         n[i] = (255 & (i * 181 + 123)) as u8;
     }
 
-    println!("extern crate mem_aead;");
     println!("pub static KAT : &'static [u8] = &[ ");
     for i in 0..MAX_SIZE {
         
@@ -111,8 +112,5 @@ fn genkat() {
 fn main() {
 
     //genkat();
-      
-    //println!("{}", mro_kat::KAT[0]);
-       
     test();
 }

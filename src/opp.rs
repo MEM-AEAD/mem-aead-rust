@@ -5,8 +5,8 @@ type Word = u64;
 const OPP_W: usize = 64;         // word size
 const OPP_L: usize = 4;          // number of rounds
 const OPP_T: usize = OPP_W *  4; // tag size
-const OPP_N: usize = OPP_W *  2; // nonce size
-const OPP_K: usize = OPP_W *  4; // key size
+//const OPP_N: usize = OPP_W *  2; // nonce size
+//const OPP_K: usize = OPP_W *  4; // key size
 const OPP_B: usize = OPP_W * 16; // permutation size
 
 const R0 : u32 = 32; 
@@ -236,7 +236,7 @@ fn opp_decrypt_block(state : &mut[Word; 16], mask : &mut[Word; 16], block_out : 
 
     for i in 0..Words!(OPP_B) {
         store_le(&mut block_out[i * Bytes!(OPP_W)..], b[i] ^ mask[i]);
-        state[i] ^= load_le(&block_in[i * Bytes!(OPP_W)..]);
+        state[i] ^= load_le(&block_out[i * Bytes!(OPP_W)..]);
     }
 }
 
@@ -270,17 +270,17 @@ fn opp_decrypt_lastblock(state : &mut[Word; 16], mask : &[Word; 16], block_out :
 
 fn opp_absorb_data(state : &mut[Word; 16], mask : &mut[Word; 16], data : &[u8]) {
 
-    let mut inlen = data.len();
-    let mut offset = 0;
-    while inlen >= Bytes!(OPP_B) {
-        opp_absorb_block(state, mask, &data[offset..]);
-        inlen  -= Bytes!(OPP_B);
-        offset += Bytes!(OPP_B);
+    let mut i = data.len();
+    let mut o = 0;
+    while i >= Bytes!(OPP_B) {
+        opp_absorb_block(state, mask, &data[o..o+Bytes!(OPP_B)]);
+        i -= Bytes!(OPP_B);
+        o += Bytes!(OPP_B);
         opp_alpha(mask);
     }
-    if inlen > 0 {
+    if i > 0 {
         opp_beta(mask);
-        opp_absorb_lastblock(state, mask, &data[offset..]);
+        opp_absorb_lastblock(state, mask, &data[o..o+i]);
     }
 }
 
@@ -288,17 +288,17 @@ fn opp_encrypt_data(state : &mut [Word; 16], mask : &mut[Word; 16], data_out : &
 
     opp_gamma(mask);
 
-    let mut inlen = data_in.len();
-    let mut offset = 0;
-    while inlen >= Bytes!(OPP_B) {
-        opp_encrypt_block(state, mask, &mut data_out[offset..], &data_in[offset..]);
-        inlen  -= Bytes!(OPP_B);
-        offset += Bytes!(OPP_B);
+    let mut i = data_in.len();
+    let mut o = 0;
+    while i >= Bytes!(OPP_B) {
+        opp_encrypt_block(state, mask, &mut data_out[o..o+Bytes!(OPP_B)], &data_in[o..o+Bytes!(OPP_B)]);
+        i -= Bytes!(OPP_B);
+        o += Bytes!(OPP_B);
         opp_alpha(mask);
     }
-    if inlen > 0 {
+    if i > 0 {
         opp_beta(mask);
-        opp_encrypt_lastblock(state, mask, &mut data_out[offset..], &data_in[offset..]);
+        opp_encrypt_lastblock(state, mask, &mut data_out[o..o+i], &data_in[o..o+i]);
     }
 }
 
@@ -306,17 +306,17 @@ fn opp_decrypt_data(state : &mut [Word; 16], mask : &mut[Word; 16], data_out : &
 
     opp_gamma(mask);
 
-    let mut inlen = data_in.len();
-    let mut offset = 0;
-    while inlen >= Bytes!(OPP_B) {
-        opp_decrypt_block(state, mask, &mut data_out[offset..], &data_in[offset..]);
-        inlen  -= Bytes!(OPP_B);
-        offset += Bytes!(OPP_B);
+    let mut i = data_in.len();
+    let mut o = 0;
+    while i >= Bytes!(OPP_B) {
+        opp_decrypt_block(state, mask, &mut data_out[o..o+Bytes!(OPP_B)], &data_in[o..o+Bytes!(OPP_B)]);
+        i -= Bytes!(OPP_B);
+        o += Bytes!(OPP_B);
         opp_alpha(mask);
     }
-    if inlen > 0 {
+    if i > 0 {
         opp_beta(mask);
-        opp_decrypt_lastblock(state, mask, &mut data_out[offset..], &data_in[offset..]);
+        opp_decrypt_lastblock(state, mask, &mut data_out[o..o+i], &data_in[o..o+i]);
     }
 }
 
@@ -345,7 +345,6 @@ fn opp_finalise(sa : &mut[Word; 16], se : &mut[Word; 16], mask : &mut[Word; 16],
     for i in 0..Bytes!(OPP_T) {
         tag[i] = b[i];
     }
-
 }
 
 fn opp_verify_tag(x : &[u8], y : &[u8]) -> bool {
