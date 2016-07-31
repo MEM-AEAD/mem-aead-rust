@@ -1,4 +1,4 @@
-# MEM AEAD (Rust)
+# Masked Even-Mansour AEAD Modes (Rust)
 
 ## Warning
 The cipher designs of this source code package are very new and still **lack extensive analysis**. Therefore, **do not use** them in your applications just now!
@@ -7,7 +7,7 @@ The cipher designs of this source code package are very new and still **lack ext
 ## About
 This repository provides [Rust](https://www.rust-lang.org) reference implementations for the authenticated encryption modes **OPP** and **MRO** instantiated with a round-reduced [BLAKE2b](https://blake2.net/) permutation. All ciphers target a 256-bit security level.
 
-The specification of the schemes together with many more information can be found at [https://eprint.iacr.org/2015/999](https://eprint.iacr.org/2015/999). 
+The specification of the schemes together with many more information can be found at [ia.cr/2015/999](https://eprint.iacr.org/2015/999). 
 The C reference source code is available [here](https://github.com/MEM-AEAD/mem-aead).
 
 
